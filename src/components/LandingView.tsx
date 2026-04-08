@@ -69,7 +69,8 @@ export default function LandingView({
     <div className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
       {/* Animated gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950" />
-      <div className="absolute inset-0 opacity-20 animate-pulse bg-gradient-to-tr from-amber-900/30 via-transparent to-blue-900/30" />
+      <div className="absolute inset-0 opacity-30 bg-gradient-to-tr from-amber-900/40 via-transparent to-blue-900/20" style={{ animation: "gradientShift 8s ease-in-out infinite alternate" }} />
+      <div className="absolute inset-0 opacity-10 bg-gradient-to-bl from-transparent via-amber-800/20 to-transparent" style={{ animation: "gradientShift 12s ease-in-out infinite alternate-reverse" }} />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center gap-8 px-6 max-w-xl w-full">

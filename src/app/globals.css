@@ -42,6 +42,13 @@ body {
   background: rgba(212, 160, 74, 0.15) !important;
 }
 
+/* Landing page gradient animation */
+@keyframes gradientShift {
+  0% { opacity: 0.1; transform: scale(1) translate(0, 0); }
+  50% { opacity: 0.3; transform: scale(1.05) translate(2%, -1%); }
+  100% { opacity: 0.15; transform: scale(1) translate(-1%, 1%); }
+}
+
 /* Hide mapbox default controls we don't need */
 .mapboxgl-ctrl-attrib {
   display: none !important;

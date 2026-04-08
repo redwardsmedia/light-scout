@@ -21,6 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full`}>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#0a0a0f" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link
           href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css"
           rel="stylesheet"

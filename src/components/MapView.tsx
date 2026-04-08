@@ -11,6 +11,8 @@ import {
   type DayData,
   type SunPosition,
 } from "@/lib/sun-engine";
+import { fetchWeather, getSkyAtTime, type WeatherData, type SkyInfo } from "@/lib/weather";
+import { computeShootWindows, type ShootWindow } from "@/lib/shoot-windows";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
 mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -52,10 +54,31 @@ export default function MapView({
   // Pulse animation
   const pulseRef = useRef<number>(0);
 
+  // Weather
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+
   // Precompute sun data for the day
   const dayData: DayData = useMemo(
     () => computeDayData(lat, lng, date),
     [lat, lng, date]
+  );
+
+  // Fetch weather (non-blocking)
+  useEffect(() => {
+    setWeather(null);
+    fetchWeather(lat, lng, date).then(setWeather);
+  }, [lat, lng, date]);
+
+  // Compute best shoot windows
+  const shootWindows: ShootWindow[] = useMemo(
+    () => computeShootWindows(dayData, weather),
+    [dayData, weather]
+  );
+
+  // Current sky condition
+  const currentSky: SkyInfo | null = useMemo(
+    () => (weather ? getSkyAtTime(weather, currentTimeMs) : null),
+    [weather, currentTimeMs]
   );
 
   // Current interpolated position
@@ -635,11 +658,64 @@ export default function MapView({
               )}
             </>
           )}
+          {currentSky && (
+            <span className="ml-auto flex items-center gap-1">
+              <WeatherIcon condition={currentSky.condition} />
+              <span className={currentSky.warning ? "text-amber-400" : "text-zinc-300"}>
+                {currentSky.label}
+              </span>
+            </span>
+          )}
         </div>
 
         {/* Expanded content */}
         {sheetPosition !== "peek" && (
           <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+            {/* Best Shoot Windows */}
+            {shootWindows.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                  Best Shoot Windows
+                </h3>
+                <div className="space-y-2">
+                  {shootWindows.map((w, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentTimeMs(w.startMs)}
+                      className="w-full bg-zinc-800/60 border border-amber-500/20 rounded-lg px-3 py-2.5 text-left
+                        hover:bg-amber-500/10 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-amber-400 font-semibold text-sm">{i + 1}.</span>
+                          <div>
+                            <p className="text-sm font-medium text-white">
+                              {w.startLabel} — {w.endLabel}
+                            </p>
+                            <p className="text-xs text-zinc-400 mt-0.5">{w.description}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <WeatherIcon condition={w.sky.condition} />
+                          <span className="text-xs text-zinc-400">{w.sky.label}</span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Weather warning */}
+            {currentSky?.warning && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M12 2l10 18H2L12 2z" />
+                </svg>
+                <span className="text-xs text-amber-300">{currentSky.warning}</span>
+              </div>
+            )}
+
             <div>
               <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-2">
                 Key Times —{" "}
@@ -730,6 +806,40 @@ export default function MapView({
 }
 
 // --- Sub-components ---
+
+function WeatherIcon({ condition }: { condition: string }) {
+  if (condition === "clear") {
+    return (
+      <svg className="w-4 h-4 text-yellow-400" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="12" r="4" />
+        {[0, 60, 120, 180, 240, 300].map((a) => (
+          <line key={a} x1={12 + 6.5 * Math.cos((a * Math.PI) / 180)} y1={12 + 6.5 * Math.sin((a * Math.PI) / 180)} x2={12 + 8.5 * Math.cos((a * Math.PI) / 180)} y2={12 + 8.5 * Math.sin((a * Math.PI) / 180)} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        ))}
+      </svg>
+    );
+  }
+  if (condition === "partly_cloudy") {
+    return (
+      <svg className="w-4 h-4 text-zinc-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <circle cx="10" cy="8" r="3" fill="#facc15" stroke="none" />
+        <path d="M8 16h10a4 4 0 000-8 3 3 0 00-3-3 5 5 0 00-9.5 3A4 4 0 008 16z" fill="currentColor" stroke="none" opacity="0.7" />
+      </svg>
+    );
+  }
+  if (condition === "overcast") {
+    return (
+      <svg className="w-4 h-4 text-zinc-500" viewBox="0 0 24 24" fill="currentColor" opacity="0.6">
+        <path d="M8 18h10a4 4 0 000-8 3 3 0 00-3-3 5 5 0 00-9.5 3A4 4 0 008 18z" />
+      </svg>
+    );
+  }
+  // cloudy
+  return (
+    <svg className="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="currentColor" opacity="0.7">
+      <path d="M8 18h10a4 4 0 000-8 3 3 0 00-3-3 5 5 0 00-9.5 3A4 4 0 008 18z" />
+    </svg>
+  );
+}
 
 function TimeCard({
   label,
