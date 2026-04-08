@@ -225,9 +225,11 @@ export default function MapView({
   const showNowMarker = nowPct >= 0 && nowPct <= 100;
 
   return (
-    <div className="relative h-full flex flex-col">
+    <div className="relative h-screen flex flex-col">
       {/* Map */}
-      <div ref={mapContainer} className="absolute inset-0" />
+      <div className="absolute inset-0">
+        <div ref={mapContainer} className="w-full h-full" />
+      </div>
 
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 px-4 py-3 bg-gradient-to-b from-zinc-950/80 to-transparent">

@@ -26,7 +26,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="h-full bg-zinc-950 text-white font-sans antialiased">
+      <body className="min-h-screen h-screen bg-zinc-950 text-white font-sans antialiased overflow-hidden">
         {children}
       </body>
     </html>

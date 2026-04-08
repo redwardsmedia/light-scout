@@ -66,7 +66,7 @@ export default function LandingView({
   const dateStr = selectedDate.toISOString().split("T")[0];
 
   return (
-    <div className="relative h-full flex flex-col items-center justify-center overflow-hidden">
+    <div className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
       {/* Animated gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950" />
       <div className="absolute inset-0 opacity-20 animate-pulse bg-gradient-to-tr from-amber-900/30 via-transparent to-blue-900/30" />
