@@ -287,3 +287,41 @@ export function compassDirection(deg: number): string {
   const idx = Math.round(deg / 22.5) % 16;
   return dirs[idx];
 }
+
+/**
+ * Project a sun position onto map coordinates for the sun arc overlay.
+ * Distance from property inversely proportional to altitude — high sun = close, horizon = far.
+ * Returns [lng, lat] offset from the property center.
+ */
+export function projectSunToMap(
+  pos: SunPosition,
+  centerLat: number,
+  centerLng: number,
+  radiusDeg: number = 0.006
+): [number, number] {
+  // Scale: 1.0 at horizon (0 deg), 0.2 at zenith (90 deg)
+  // Use cos(altitude) so it curves naturally
+  const altRad = Math.max(0, pos.altitude);
+  const dist = radiusDeg * Math.cos(altRad);
+
+  // Azimuth: SunCalc uses 0=south CW. Convert to math angle: 0=east CCW
+  // compassBearing = azimuthDeg (0=north CW)
+  const bearingRad = (pos.azimuthDeg * Math.PI) / 180;
+
+  const dlng = dist * Math.sin(bearingRad) / Math.cos((centerLat * Math.PI) / 180);
+  const dlat = dist * Math.cos(bearingRad);
+
+  return [centerLng + dlng, centerLat + dlat];
+}
+
+/**
+ * Get a color for a sun position based on altitude.
+ * Gold near horizon, white at midday, blue below horizon.
+ */
+export function sunArcColor(altitudeDeg: number): string {
+  if (altitudeDeg < -1) return "rgba(59, 89, 152, 0.6)"; // blue hour
+  if (altitudeDeg < 6) return "rgba(212, 160, 74, 0.9)"; // golden
+  if (altitudeDeg < 15) return "rgba(230, 190, 110, 0.8)"; // warm
+  if (altitudeDeg < 40) return "rgba(255, 240, 200, 0.7)"; // neutral warm
+  return "rgba(255, 255, 255, 0.6)"; // white at high noon
+}
