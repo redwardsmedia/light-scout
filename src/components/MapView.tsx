@@ -146,10 +146,10 @@ export default function MapView({
 
     const map = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/mapbox/satellite-streets-v12",
+      style: "mapbox://styles/mapbox/satellite-v9",
       center: [lng, lat],
-      zoom: 17,
-      pitch: 45,
+      zoom: 18,
+      pitch: 0,
       bearing: 0,
     });
 
@@ -164,9 +164,9 @@ export default function MapView({
 
     map.once("load", () => {
       map.flyTo({
-        center: [lng, lat - 0.002], // offset south so arc is visible above center
-        zoom: 16,
-        pitch: 30,
+        center: [lng, lat],
+        zoom: 19,
+        pitch: 0,
         duration: 2000,
         essential: true,
       });
@@ -212,9 +212,9 @@ export default function MapView({
         source: "sun-arc-glow",
         paint: {
           "line-color": "#d4a04a",
-          "line-width": 18,
-          "line-opacity": 0.25,
-          "line-blur": 6,
+          "line-width": 8,
+          "line-opacity": 0.12,
+          "line-blur": 4,
         },
         layout: {
           "line-cap": "round",
@@ -228,8 +228,8 @@ export default function MapView({
         type: "line",
         source: "sun-arc",
         paint: {
-          "line-width": 4,
-          "line-opacity": 0.9,
+          "line-width": 2,
+          "line-opacity": 0.5,
           "line-gradient": [
             "interpolate",
             ["linear"],
@@ -340,38 +340,75 @@ export default function MapView({
     if (dotSource) dotSource.setData(dotGeoJSON);
     if (pulseSource) pulseSource.setData(dotGeoJSON);
 
-    // Light wedge
+    // Light beam — prominent directional cone showing where sunlight hits the property
     if (currentPos.altitudeDeg >= -1) {
-      const mapBearing = (currentPos.azimuthDeg + 180) % 360;
-      const fromAz = (mapBearing * Math.PI) / 180;
-      const wedgeLength = 0.002;
+      // Sun azimuth is where the sun IS. Light comes FROM that direction toward the property.
+      const sunBearingRad = (currentPos.azimuthDeg * Math.PI) / 180;
+      const cosLat = Math.cos((lat * Math.PI) / 180);
 
-      const tip1Lng =
-        lng + (wedgeLength * Math.sin(fromAz - 0.3)) / Math.cos((lat * Math.PI) / 180);
-      const tip1Lat = lat + wedgeLength * Math.cos(fromAz - 0.3);
-      const tip2Lng =
-        lng + (wedgeLength * Math.sin(fromAz + 0.3)) / Math.cos((lat * Math.PI) / 180);
-      const tip2Lat = lat + wedgeLength * Math.cos(fromAz + 0.3);
+      // Build a wide beam FROM the sun direction, hitting the property
+      // The beam starts far away and narrows toward the property
+      const farDist = 0.0015; // ~165m — far end of beam
+      const nearDist = 0.00005; // ~5m — tight at property
+      const spread = 0.35; // angular spread in radians (~20 degrees)
+
+      // Far end (where light comes from — sun side)
+      const farCenterLng = lng + (farDist * Math.sin(sunBearingRad)) / cosLat;
+      const farCenterLat = lat + farDist * Math.cos(sunBearingRad);
+      const farLeftLng = lng + (farDist * Math.sin(sunBearingRad - spread)) / cosLat;
+      const farLeftLat = lat + farDist * Math.cos(sunBearingRad - spread);
+      const farRightLng = lng + (farDist * Math.sin(sunBearingRad + spread)) / cosLat;
+      const farRightLat = lat + farDist * Math.cos(sunBearingRad + spread);
+
+      // Near end (at property — opposite side of sun)
+      const oppBearing = sunBearingRad + Math.PI;
+      const nearLeftLng = lng + (nearDist * Math.sin(oppBearing - 0.5)) / cosLat;
+      const nearLeftLat = lat + nearDist * Math.cos(oppBearing - 0.5);
+      const nearRightLng = lng + (nearDist * Math.sin(oppBearing + 0.5)) / cosLat;
+      const nearRightLat = lat + nearDist * Math.cos(oppBearing + 0.5);
 
       const wedgeGeoJSON: GeoJSON.Feature = {
         type: "Feature",
         geometry: {
           type: "Polygon",
-          coordinates: [
-            [[lng, lat], [tip1Lng, tip1Lat], [tip2Lng, tip2Lat], [lng, lat]],
-          ],
+          coordinates: [[
+            [nearLeftLng, nearLeftLat],
+            [farLeftLng, farLeftLat],
+            [farCenterLng, farCenterLat],
+            [farRightLng, farRightLat],
+            [nearRightLng, nearRightLat],
+            [nearLeftLng, nearLeftLat],
+          ]],
         },
         properties: {},
       };
 
-      let color = "rgba(255, 200, 80, 0.15)";
-      if (currentPos.altitudeDeg > 30) color = "rgba(255, 255, 200, 0.08)";
-      else if (currentPos.altitudeDeg < 2) color = "rgba(80, 120, 200, 0.12)";
+      // Color based on light quality
+      let color: string;
+      let opacity: number;
+      if (currentPos.altitudeDeg <= 6) {
+        color = "rgba(255, 170, 40, 0.45)"; // golden hour — rich amber
+        opacity = 0.8;
+      } else if (currentPos.altitudeDeg <= 15) {
+        color = "rgba(255, 200, 80, 0.35)"; // warm light
+        opacity = 0.7;
+      } else if (currentPos.altitudeDeg <= 40) {
+        color = "rgba(255, 240, 180, 0.2)"; // neutral
+        opacity = 0.5;
+      } else {
+        color = "rgba(255, 255, 220, 0.12)"; // high noon — faint
+        opacity = 0.4;
+      }
+      if (currentPos.altitudeDeg < 0) {
+        color = "rgba(100, 140, 220, 0.25)"; // twilight blue
+        opacity = 0.6;
+      }
 
       const wedgeSource = map.getSource("light-wedge") as mapboxgl.GeoJSONSource;
       if (wedgeSource) {
         wedgeSource.setData(wedgeGeoJSON);
         map.setPaintProperty("light-wedge-fill", "fill-color", color);
+        map.setPaintProperty("light-wedge-fill", "fill-opacity", opacity);
       }
     }
   }, [currentPos, lat, lng, mapLoaded]);

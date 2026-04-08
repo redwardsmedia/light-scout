@@ -297,7 +297,7 @@ export function projectSunToMap(
   pos: SunPosition,
   centerLat: number,
   centerLng: number,
-  radiusDeg: number = 0.006
+  radiusDeg: number = 0.002
 ): [number, number] {
   // Scale: 1.0 at horizon (0 deg), 0.2 at zenith (90 deg)
   // Use cos(altitude) so it curves naturally
